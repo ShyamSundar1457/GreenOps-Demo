@@ -1,0 +1,17 @@
+# Sample YAML file
+app:
+  name: "MyApp"
+  version: 1.0
+  enabled: true
+  
+# List example
+database:
+  hosts:
+    - 10.0.0.1
+    - 10.0.0.2
+  port: 5432
+
+# Multi-line string example
+description: |
+  This is a multi-line string
+  that keeps newlines.

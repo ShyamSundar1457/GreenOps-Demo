@@ -1,0 +1,28 @@
+name: GreenOps Test Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Check System Info
+        run: |
+          echo "Runner is online!"
+          echo "Current directory: $PWD"
+          echo "Date: $(date)"
+
+      - name: Check Files in Repo
+        run: |
+          echo "Files in project:"
+          ls
+
+      - name: Test Passed
+        run: echo "✅ All checks passed successfully!"

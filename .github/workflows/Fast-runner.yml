@@ -9,13 +9,10 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true        # ✅ cancels old run if a new push comes in
+  cancel-in-progress: true
 
 jobs:
 
-  # ──────────────────────────────────────────────
-  # JOB 1 + 2: Lint & Test run in PARALLEL (~3 min)
-  # ──────────────────────────────────────────────
   lint:
     name: Lint
     runs-on: self-hosted
@@ -24,16 +21,13 @@ jobs:
         shell: pwsh
     steps:
       - name: Checkout
-        uses: actions/checkout@v4   # ✅ shallow clone (default fetch-depth: 1)
+        uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "npm"              # ✅ caches node_modules between runs
+      - name: Verify Node version  # uses whatever Node is installed on your machine
+        run: node -v
 
       - name: Install dependencies
-        run: npm ci                 # ✅ faster & deterministic vs npm install
+        run: npm ci
 
       - name: Lint
         run: npm run lint
@@ -48,11 +42,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "npm"              # ✅ shared cache with lint job
+      - name: Verify Node version
+        run: node -v
 
       - name: Install dependencies
         run: npm ci
@@ -68,11 +59,8 @@ jobs:
         with:
           name: dist
           path: dist\
-          retention-days: 7         # ✅ short retention, only 1 artifact
+          retention-days: 7
 
-  # ──────────────────────────────────────────────
-  # JOB 3: Quick summary — runs after both (~30 sec)
-  # ──────────────────────────────────────────────
   summary:
     name: Summary
     runs-on: self-hosted

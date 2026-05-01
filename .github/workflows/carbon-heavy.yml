@@ -1,0 +1,149 @@
+name: Carbon-Heavy Inefficient Workflow
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+# ❌ No concurrency cancellation — old runs keep burning resources
+# concurrency: not set intentionally
+
+jobs:
+
+  # ──────────────────────────────────────────────
+  # JOB 1: Giant matrix — all OS × all Node versions
+  # ──────────────────────────────────────────────
+  bloated-matrix:
+    name: Build (${{ matrix.os }} / Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false          # ❌ Keep running ALL matrix legs even after failure
+      matrix:
+        os: [ubuntu-latest, ubuntu-22.04, ubuntu-20.04,
+             windows-latest, windows-2022, windows-2019,
+             macos-latest, macos-13, macos-12]
+        node: [14, 16, 18, 20, 21, 22]
+        # 9 OS × 6 versions = 54 parallel runners
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # ❌ Full git history — never a shallow clone
+
+      # ❌ No cache — reinstall every single time
+      - name: Setup Node ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Install dependencies (no cache)
+        run: npm install        # ❌ npm install instead of npm ci; no lockfile benefit
+
+      - name: Reinstall dependencies again (redundant)
+        run: npm install        # ❌ exact duplicate install
+
+      - name: Sleep to simulate slow test suite
+        run: sleep 120          # ❌ 2-minute artificial delay on every runner
+
+      - name: Run tests (verbose + repeated)
+        run: |
+          npm test -- --verbose
+          npm test -- --verbose   # ❌ run the full test suite twice
+          npm test -- --verbose   # ❌ and a third time for good measure
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Build again (unnecessary)
+        run: npm run build      # ❌ rebuild immediately after
+
+      - name: Upload build artifact per matrix leg
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}-node${{ matrix.node }}
+          path: dist/
+          retention-days: 90   # ❌ keep 54 identical artifacts for 90 days
+
+  # ──────────────────────────────────────────────
+  # JOB 2: Sequential lint — waits for the giant matrix, then re-installs
+  # ──────────────────────────────────────────────
+  lint:
+    name: Lint (redundant)
+    runs-on: ubuntu-latest
+    needs: bloated-matrix       # ❌ waits for 54 jobs to finish before starting
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm install        # ❌ installs again — no shared cache with matrix jobs
+
+      - name: Lint (run three times)
+        run: |
+          npm run lint
+          npm run lint
+          npm run lint
+
+  # ──────────────────────────────────────────────
+  # JOB 3: Security audit — also re-installs everything
+  # ──────────────────────────────────────────────
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    needs: bloated-matrix
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm install        # ❌ yet another cold install
+
+      - name: Audit (repeated)
+        run: |
+          npm audit
+          npm audit
+          npm audit
+
+  # ──────────────────────────────────────────────
+  # JOB 4: Download ALL 54 artifacts and do nothing with them
+  # ──────────────────────────────────────────────
+  useless-aggregator:
+    name: Useless Aggregation
+    runs-on: ubuntu-latest
+    needs: [lint, security]
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts   # ❌ downloads every one of the 54 large artifacts
+
+      - name: Sleep again
+        run: sleep 180          # ❌ 3-minute sleep doing absolutely nothing
+
+      - name: List files (only real work done)
+        run: find all-artifacts -type f | wc -l
+
+  # ──────────────────────────────────────────────
+  # JOB 5: Notify — sends the same notification 10 times
+  # ──────────────────────────────────────────────
+  notify:
+    name: Notify Team (x10)
+    runs-on: ubuntu-latest
+    needs: useless-aggregator
+    steps:
+      - name: Spam notifications
+        run: |
+          for i in {1..10}; do
+            echo "Sending notification $i..."
+            sleep 30            # ❌ 30 s gap × 10 = 5 extra minutes of idle runner
+          done
